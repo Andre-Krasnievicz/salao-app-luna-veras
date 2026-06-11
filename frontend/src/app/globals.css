@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-white text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .page-container {
+    @apply max-w-4xl mx-auto px-4 py-8;
+  }
+
+  .auth-card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm p-8;
+  }
+}
