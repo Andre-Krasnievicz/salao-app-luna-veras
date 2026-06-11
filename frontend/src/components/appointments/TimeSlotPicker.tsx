@@ -12,9 +12,10 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 interface TimeSlotPickerProps {
   onSelect: (slot: TimeSlot) => void;
   selectedSlot?: TimeSlot | null;
+  durationMinutes?: number;
 }
 
-export default function TimeSlotPicker({ onSelect, selectedSlot }: TimeSlotPickerProps) {
+export default function TimeSlotPicker({ onSelect, selectedSlot, durationMinutes }: TimeSlotPickerProps) {
   const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,14 +24,14 @@ export default function TimeSlotPicker({ onSelect, selectedSlot }: TimeSlotPicke
     setLoading(true);
     try {
       const dateStr = format(date, "yyyy-MM-dd");
-      const res = await publicApi.getAvailability(dateStr);
+      const res = await publicApi.getAvailability(dateStr, durationMinutes);
       setSlots(res.data.slots);
     } catch {
       setSlots([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [durationMinutes]);
 
   useEffect(() => {
     loadSlots(selectedDate);

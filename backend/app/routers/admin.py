@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -11,8 +11,10 @@ from app.repositories.data_deletion_repository import DataDeletionRepository
 from app.repositories.site_visit_repository import SiteVisitRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointment import AdminAppointmentCreate, AdminAppointmentUpdate, AppointmentResponse
+from app.schemas.service import ServiceCreate, ServiceResponse, ServiceUpdate
 from app.schemas.settings import SettingsResponse, SettingsUpdate
 from app.services.appointment_service import AppointmentService
+from app.services.service_service import ServiceService
 from app.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -33,6 +35,30 @@ def dashboard(
         "appointments_7d": appt_repo.count_by_days(7),
         "appointments_30d": appt_repo.count_by_days(30),
     }
+
+
+@router.get("/services", response_model=List[ServiceResponse])
+def list_services(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    return ServiceService(db).get_all_admin()
+
+
+@router.post("/services", response_model=ServiceResponse, status_code=201)
+def create_service(
+    body: ServiceCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return ServiceService(db).create(body)
+
+
+@router.patch("/services/{service_id}", response_model=ServiceResponse)
+def update_service(
+    service_id: int,
+    body: ServiceUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    return ServiceService(db).update(service_id, body)
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -78,15 +104,15 @@ def create_appointment(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    appt = AppointmentService(db).create_admin(
+    return AppointmentService(db).create_admin(
         admin=admin,
         client_name=body.client_name,
         client_phone=body.client_phone,
         start_time=body.start_time,
         client_email=body.client_email,
         notes=body.notes,
+        service_ids=body.service_ids,
     )
-    return AppointmentResponse.model_validate(appt)
 
 
 @router.patch("/appointments/{appointment_id}", response_model=AppointmentResponse)
@@ -96,13 +122,12 @@ def update_appointment(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    appt = AppointmentService(db).admin_update(
+    return AppointmentService(db).admin_update(
         appointment_id,
         status=body.status,
         notes=body.notes,
         start_time=body.start_time,
     )
-    return AppointmentResponse.model_validate(appt)
 
 
 @router.delete("/appointments/{appointment_id}")

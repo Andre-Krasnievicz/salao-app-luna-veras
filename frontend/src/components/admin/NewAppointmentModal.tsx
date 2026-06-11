@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import ServicePicker from "@/components/appointments/ServicePicker";
 import { adminApi } from "@/lib/api";
+import { Service } from "@/types";
 import { getAxiosError } from "@/lib/utils";
 
 interface NewAppointmentModalProps {
@@ -23,8 +25,21 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
     time: prefillDate ? `${String(prefillDate.getHours()).padStart(2, "0")}:00` : "09:00",
     notes: "",
   });
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setServicesLoading(true);
+      adminApi.getServices()
+        .then((res) => setServices(res.data))
+        .catch(() => {})
+        .finally(() => setServicesLoading(false));
+    }
+  }, [open]);
 
   const set = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -40,10 +55,15 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
         client_email: form.client_email || undefined,
         start_time,
         notes: form.notes || undefined,
+        service_ids: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
       });
       onSuccess();
       onClose();
-      setForm({ client_name: "", client_phone: "", client_email: "", date: new Date().toISOString().slice(0, 10), time: "09:00", notes: "" });
+      setForm({
+        client_name: "", client_phone: "", client_email: "",
+        date: new Date().toISOString().slice(0, 10), time: "09:00", notes: "",
+      });
+      setSelectedServiceIds([]);
     } catch (err) {
       setError(getAxiosError(err));
     } finally {
@@ -52,7 +72,7 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Novo Agendamento">
+    <Modal open={open} onClose={onClose} title="Novo Agendamento" maxWidth="max-w-lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input label="Nome do Cliente" value={form.client_name} onChange={(e) => set("client_name", e.target.value)} required placeholder="Maria Silva" />
         <Input label="WhatsApp" value={form.client_phone} onChange={(e) => set("client_phone", e.target.value)} required placeholder="11999999999" />
@@ -61,6 +81,17 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
           <Input label="Data" type="date" value={form.date} onChange={(e) => set("date", e.target.value)} required />
           <Input label="Horário" type="time" value={form.time} onChange={(e) => set("time", e.target.value)} required />
         </div>
+
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Serviços (opcional)</p>
+          <ServicePicker
+            services={services}
+            selected={selectedServiceIds}
+            onChange={setSelectedServiceIds}
+            loading={servicesLoading}
+          />
+        </div>
+
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Observações</label>
           <textarea

@@ -6,6 +6,8 @@ from app.models.business_hours import BusinessHours
 from app.models.site_visit import SiteVisit
 from app.models.audit_log import AuditLog
 from app.models.data_deletion_request import DataDeletionRequest
+from app.models.service import Service
+from app.models.appointment_service import AppointmentService
 
 __all__ = [
     "User",
@@ -16,4 +18,6 @@ __all__ = [
     "SiteVisit",
     "AuditLog",
     "DataDeletionRequest",
+    "Service",
+    "AppointmentService",
 ]

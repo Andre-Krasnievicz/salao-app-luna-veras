@@ -1,10 +1,20 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, field_validator
+
+from app.schemas.service import AppointmentServiceSnapshot
 
 
 class PublicAppointmentCreate(BaseModel):
     start_time: datetime
+    service_ids: List[int]
+
+    @field_validator("service_ids")
+    @classmethod
+    def services_not_empty(cls, v: List[int]) -> List[int]:
+        if not v:
+            raise ValueError("Selecione ao menos um serviço.")
+        return v
 
     @field_validator("start_time")
     @classmethod
@@ -21,6 +31,7 @@ class AdminAppointmentCreate(BaseModel):
     client_email: Optional[str] = None
     start_time: datetime
     notes: Optional[str] = None
+    service_ids: Optional[List[int]] = None
 
     @field_validator("client_name")
     @classmethod
@@ -75,6 +86,9 @@ class AppointmentResponse(BaseModel):
     reservation_amount_cents: int
     payment_status: Optional[str]
     mercado_pago_preference_id: Optional[str]
+    total_duration_minutes: Optional[int] = None
+    services_total_cents: Optional[int] = None
+    services: List[AppointmentServiceSnapshot] = []
     created_at: datetime
 
     model_config = {"from_attributes": True}

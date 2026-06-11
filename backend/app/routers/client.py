@@ -75,5 +75,5 @@ def create_appointment(
     db: Session = Depends(get_db),
     user: User = Depends(require_client),
 ):
-    result = AppointmentService(db).create_public(body.start_time, user)
+    result = AppointmentService(db).create_public(body.start_time, body.service_ids, user)
     return result
