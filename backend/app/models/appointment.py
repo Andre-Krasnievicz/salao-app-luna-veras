@@ -27,6 +27,9 @@ class Appointment(Base):
     mercado_pago_preference_id = Column(String(255), nullable=True)
     mercado_pago_payment_id = Column(String(255), nullable=True)
 
+    total_duration_minutes = Column(Integer, nullable=True)
+    services_total_cents = Column(Integer, nullable=True)
+
     client_reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
     admin_reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
 

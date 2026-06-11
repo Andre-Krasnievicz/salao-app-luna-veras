@@ -1,5 +1,22 @@
 export type UserRole = "admin" | "client";
 
+export interface Service {
+  id: number;
+  name: string;
+  category: string;
+  duration_minutes: number;
+  price_cents: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface AppointmentServiceSnapshot {
+  service_id?: number;
+  service_name_snapshot: string;
+  service_duration_snapshot: number;
+  service_price_snapshot: number;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -35,6 +52,9 @@ export interface Appointment {
   reservation_amount_cents: number;
   payment_status?: string;
   mercado_pago_preference_id?: string;
+  total_duration_minutes?: number;
+  services_total_cents?: number;
+  services?: AppointmentServiceSnapshot[];
   created_at: string;
 }
 

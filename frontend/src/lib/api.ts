@@ -59,7 +59,9 @@ export const authApi = {
 // Public
 export const publicApi = {
   getSettings: () => api.get("/api/settings/public"),
-  getAvailability: (date: string) => api.get(`/api/availability?date=${date}`),
+  getServices: () => api.get("/api/services"),
+  getAvailability: (date: string, durationMinutes?: number) =>
+    api.get(`/api/availability?date=${date}${durationMinutes ? `&duration_minutes=${durationMinutes}` : ""}`),
   recordVisit: (path: string) => api.post("/api/site-visits", { path }),
 };
 
@@ -76,8 +78,8 @@ export const clientApi = {
   getAppointments: () => api.get("/api/client/appointments"),
   requestDataDeletion: (reason?: string) =>
     api.post("/api/client/data-deletion-request", { reason }),
-  createAppointment: (start_time: string) =>
-    api.post("/api/appointments/public", { start_time }),
+  createAppointment: (start_time: string, service_ids: number[]) =>
+    api.post("/api/appointments/public", { start_time, service_ids }),
 };
 
 // Admin
@@ -85,6 +87,11 @@ export const adminApi = {
   getDashboard: () => api.get("/api/admin/dashboard"),
   getSettings: () => api.get("/api/admin/settings"),
   updateSettings: (data: object) => api.put("/api/admin/settings", data),
+  getServices: () => api.get("/api/admin/services"),
+  createService: (data: { name: string; category: string; duration_minutes: number; price_cents?: number; sort_order?: number }) =>
+    api.post("/api/admin/services", data),
+  updateService: (id: number, data: Partial<{ name: string; category: string; duration_minutes: number; price_cents: number; is_active: boolean; sort_order: number }>) =>
+    api.patch(`/api/admin/services/${id}`, data),
   getAppointments: (date?: string) =>
     api.get(`/api/admin/appointments${date ? `?date=${date}` : ""}`),
   createAppointment: (data: {
@@ -93,6 +100,7 @@ export const adminApi = {
     client_email?: string;
     start_time: string;
     notes?: string;
+    service_ids?: number[];
   }) => api.post("/api/admin/appointments", data),
   updateAppointment: (id: number, data: object) =>
     api.patch(`/api/admin/appointments/${id}`, data),

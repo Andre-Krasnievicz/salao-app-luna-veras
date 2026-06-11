@@ -3,13 +3,14 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { FiGrid, FiSettings, FiShield, FiLogOut, FiMenu } from "react-icons/fi";
+import { FiGrid, FiSettings, FiShield, FiLogOut, FiMenu, FiScissors } from "react-icons/fi";
 import { HiSparkles } from "react-icons/hi2";
 import { useAuth } from "@/contexts/AuthContext";
 import { SALON_NAME } from "@/lib/constants";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: FiGrid },
+  { href: "/admin/servicos", label: "Serviços", icon: FiScissors },
   { href: "/admin/configuracoes", label: "Configurações", icon: FiSettings },
   { href: "/admin/lgpd", label: "LGPD", icon: FiShield },
 ];

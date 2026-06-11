@@ -1,16 +1,21 @@
 from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.appointment_service_repository import AppointmentServiceRepository
+from app.repositories.service_repository import ServiceRepository
 from app.repositories.settings_repository import SettingsRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.appointment import AppointmentResponse, CheckoutResponse
+from app.schemas.service import AppointmentServiceSnapshot
 
 
 class AppointmentService:
     def __init__(self, db: Session):
+        self.db = db
         self.repo = AppointmentRepository(db)
         self.settings_repo = SettingsRepository(db)
         self.user_repo = UserRepository(db)
@@ -28,12 +33,26 @@ class AppointmentService:
             raise HTTPException(status_code=409, detail="Horário não disponível.")
         return end_time
 
-    def create_public(self, start_time: datetime, client: User) -> dict:
+    def _enrich(self, appt, response: AppointmentResponse) -> AppointmentResponse:
+        snaps = AppointmentServiceRepository(self.db).get_by_appointment(appt.id)
+        response.services = [AppointmentServiceSnapshot.model_validate(s) for s in snaps]
+        return response
+
+    def create_public(self, start_time: datetime, service_ids: List[int], client: User) -> dict:
         from app.integrations.mercadopago import MercadoPagoIntegration
         from app.core.config import settings as app_settings
 
         s = self._get_settings()
-        end_time = self._check_conflict(start_time, s.appointment_duration_minutes)
+
+        # Resolve and validate services
+        services = ServiceRepository(self.db).get_by_ids(service_ids)
+        if len(services) != len(service_ids):
+            raise HTTPException(status_code=400, detail="Um ou mais serviços inválidos.")
+
+        total_minutes = sum(svc.duration_minutes for svc in services)
+        total_cents = sum(svc.price_cents for svc in services)
+
+        end_time = self._check_conflict(start_time, total_minutes)
 
         appt = self.repo.create(
             client_user_id=client.id,
@@ -43,9 +62,25 @@ class AppointmentService:
             status="pending_payment",
             source="public",
             reservation_amount_cents=s.reservation_amount_cents,
+            total_duration_minutes=total_minutes,
+            services_total_cents=total_cents,
             client_name=client.name,
             client_phone=client.phone,
             client_email=client.email,
+        )
+
+        # Persist service snapshots
+        AppointmentServiceRepository(self.db).create_bulk(
+            appt.id,
+            [
+                {
+                    "service_id": svc.id,
+                    "service_name_snapshot": svc.name,
+                    "service_duration_snapshot": svc.duration_minutes,
+                    "service_price_snapshot": svc.price_cents,
+                }
+                for svc in services
+            ],
         )
 
         mp = MercadoPagoIntegration()
@@ -65,8 +100,7 @@ class AppointmentService:
                 "checkout_url": checkout["checkout_url"],
                 "preference_id": checkout["preference_id"],
             }
-        except Exception as e:
-            # Don't expose MP errors to client
+        except Exception:
             self.repo.update(appt, status="cancelled", payment_status="error")
             raise HTTPException(status_code=502, detail="Erro ao gerar pagamento. Tente novamente.")
 
@@ -76,13 +110,26 @@ class AppointmentService:
         client_name: str,
         client_phone: str,
         start_time: datetime,
-        client_email=None,
-        notes=None,
+        client_email: Optional[str] = None,
+        notes: Optional[str] = None,
+        service_ids: Optional[List[int]] = None,
     ) -> AppointmentResponse:
         s = self._get_settings()
-        end_time = self._check_conflict(start_time, s.appointment_duration_minutes)
 
-        # Try to find existing user by phone or email
+        if service_ids:
+            services = ServiceRepository(self.db).get_by_ids(service_ids)
+            if len(services) != len(service_ids):
+                raise HTTPException(status_code=400, detail="Um ou mais serviços inválidos.")
+            total_minutes = sum(svc.duration_minutes for svc in services)
+            total_cents = sum(svc.price_cents for svc in services)
+        else:
+            services = []
+            total_minutes = s.appointment_duration_minutes
+            total_cents = None
+
+        end_time = self._check_conflict(start_time, total_minutes)
+
+        # Try to find existing user by email
         client_user_id = None
         if client_email:
             existing = self.user_repo.get_by_email(client_email)
@@ -98,11 +145,29 @@ class AppointmentService:
             source="admin",
             reservation_amount_cents=0,
             notes=notes,
+            total_duration_minutes=total_minutes if service_ids else None,
+            services_total_cents=total_cents,
             client_name=client_name,
             client_phone=client_phone,
             client_email=client_email,
         )
-        return appt
+
+        if services:
+            AppointmentServiceRepository(self.db).create_bulk(
+                appt.id,
+                [
+                    {
+                        "service_id": svc.id,
+                        "service_name_snapshot": svc.name,
+                        "service_duration_snapshot": svc.duration_minutes,
+                        "service_price_snapshot": svc.price_cents,
+                    }
+                    for svc in services
+                ],
+            )
+
+        response = AppointmentResponse.model_validate(appt)
+        return self._enrich(appt, response)
 
     def confirm_payment(self, appointment_id: int, payment_id: str, payment_status: str):
         appt = self.repo.get_by_id(appointment_id)
@@ -130,9 +195,12 @@ class AppointmentService:
             raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
         if "start_time" in kwargs and kwargs["start_time"]:
             s = self._get_settings()
-            end_time = self._check_conflict(kwargs["start_time"], s.appointment_duration_minutes, exclude_id=appointment_id)
+            duration = appt.total_duration_minutes or s.appointment_duration_minutes
+            end_time = self._check_conflict(kwargs["start_time"], duration, exclude_id=appointment_id)
             kwargs["end_time"] = end_time
-        return self.repo.update(appt, **{k: v for k, v in kwargs.items() if v is not None})
+        updated = self.repo.update(appt, **{k: v for k, v in kwargs.items() if v is not None})
+        response = AppointmentResponse.model_validate(updated)
+        return self._enrich(updated, response)
 
     def admin_delete(self, appointment_id: int):
         appt = self.repo.get_by_id(appointment_id)

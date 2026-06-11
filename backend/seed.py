@@ -1,4 +1,4 @@
-"""Seed initial data: admin user, default settings, business hours."""
+"""Seed initial data: admin user, default settings, business hours, services."""
 import sys
 import os
 
@@ -9,7 +9,28 @@ from app.core.security import hash_password
 from app.models.user import User
 from app.models.settings import SalonSettings
 from app.models.business_hours import BusinessHours
+from app.models.service import Service
 from app.core.constants import SALON_NAME
+
+# (name, category, duration_minutes, sort_order)
+SERVICES_SEED = [
+    ("Mão",                                "Unhas simples",              40, 0),
+    ("Pé",                                 "Unhas simples",              40, 1),
+    ("Esmaltação em gel",                  "Alongamentos",               60, 0),
+    ("Postiça realista simples",           "Alongamentos",               60, 1),
+    ("Postiça 3D e mix de decorações",     "Alongamentos",               90, 2),
+    ("Blindagem unha natural",             "Alongamentos",               90, 3),
+    ("Unha de gel (estrutura lisa)",       "Alongamentos",              120, 4),
+    ("Unhas de gel (estrutura decorações)", "Alongamentos",             150, 5),
+    ("Acrílico (lisa)",                    "Alongamentos",              120, 6),
+    ("Acrílico (mix de decorações)",       "Alongamentos",              150, 7),
+    ("Molde F1 (liso)",                    "Alongamentos",              120, 8),
+    ("Molde F1 (mix de decorações)",       "Alongamentos",              150, 9),
+    ("Acrílico",                           "Manutenção de alongamento",  60, 0),
+    ("Gel",                                "Manutenção de alongamento",  60, 1),
+    ("Remoção",                            "Manutenção de alongamento",  60, 2),
+    ("Molde F1",                           "Manutenção de alongamento",  60, 3),
+]
 
 
 def seed():
@@ -64,6 +85,22 @@ def seed():
                 db.add(BusinessHours(weekday=wd, opens_at=op, closes_at=cl, is_open=is_open))
         db.commit()
         print("✓ Business hours seeded.")
+
+        # Services
+        if not db.query(Service).first():
+            for name, category, duration, sort in SERVICES_SEED:
+                db.add(Service(
+                    name=name,
+                    category=category,
+                    duration_minutes=duration,
+                    price_cents=0,
+                    is_active=True,
+                    sort_order=sort,
+                ))
+            db.commit()
+            print(f"✓ {len(SERVICES_SEED)} services seeded.")
+        else:
+            print("✓ Services already exist.")
 
     finally:
         db.close()
