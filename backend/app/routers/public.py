@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from slowapi import Limiter
@@ -7,8 +8,10 @@ from app.core.database import get_db
 from app.core.security import hash_ip
 from app.repositories.site_visit_repository import SiteVisitRepository
 from app.schemas.availability import AvailabilityResponse
+from app.schemas.service import ServiceResponse
 from app.schemas.settings import PublicSettingsResponse
 from app.services.availability_service import AvailabilityService
+from app.services.service_service import ServiceService
 from app.services.settings_service import SettingsService
 
 router = APIRouter(prefix="/api", tags=["public"])
@@ -20,9 +23,18 @@ def public_settings(db: Session = Depends(get_db)):
     return SettingsService(db).get_public()
 
 
+@router.get("/services", response_model=List[ServiceResponse])
+def list_services(db: Session = Depends(get_db)):
+    return ServiceService(db).get_public()
+
+
 @router.get("/availability", response_model=AvailabilityResponse)
-def availability(date: str = Query(..., description="YYYY-MM-DD"), db: Session = Depends(get_db)):
-    return AvailabilityService(db).get_availability(date)
+def availability(
+    date: str = Query(..., description="YYYY-MM-DD"),
+    duration_minutes: Optional[int] = Query(None, ge=5),
+    db: Session = Depends(get_db),
+):
+    return AvailabilityService(db).get_availability(date, duration_minutes)
 
 
 @router.post("/site-visits", status_code=201)
