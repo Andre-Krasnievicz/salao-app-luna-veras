@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { addDays, format, startOfDay, isSameDay } from "date-fns";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { addDays, format, startOfDay, isSameDay, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { adminApi } from "@/lib/api";
-import { Appointment } from "@/types";
+import { Appointment, SalonSettings } from "@/types";
 import { formatTime } from "@/lib/utils";
 import Badge, { statusToBadge } from "@/components/ui/Badge";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -17,10 +17,12 @@ interface AdminCalendarProps {
 }
 
 export default function AdminCalendar({ onSlotClick, onAppointmentClick, refreshKey }: AdminCalendarProps) {
-  const [weekStart, setWeekStart] = useState(startOfDay(new Date()));
-  const [selectedDay, setSelectedDay] = useState(startOfDay(new Date()));
+  const [mounted, setMounted] = useState(false);
+  const [weekStart, setWeekStart] = useState<Date>(new Date(0));
+  const [selectedDay, setSelectedDay] = useState<Date>(new Date(0));
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState<SalonSettings | null>(null);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -38,17 +40,41 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
   }, []);
 
   useEffect(() => {
+    const today = startOfDay(new Date());
+    setWeekStart(today);
+    setSelectedDay(today);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     loadAppointments(selectedDay);
   }, [selectedDay, loadAppointments, refreshKey]);
 
-  const hours = Array.from({ length: 10 }, (_, i) => 8 + i); // 08:00 - 17:00
+  useEffect(() => {
+    adminApi.getSettings().then((res) => setSettings(res.data)).catch(() => {});
+  }, []);
+
+  // date-fns getDay(): 0=Sun,1=Mon..6=Sat → backend weekday: 0=Mon..6=Sun
+  const hours = useMemo(() => {
+    if (!settings?.business_hours?.length) {
+      return Array.from({ length: 10 }, (_, i) => 8 + i);
+    }
+    const weekday = (getDay(selectedDay) + 6) % 7;
+    const bh = settings.business_hours.find((b) => b.weekday === weekday);
+    if (!bh || !bh.is_open) return [];
+    const startHour = parseInt(bh.opens_at.split(":")[0], 10);
+    const endHour = parseInt(bh.closes_at.split(":")[0], 10);
+    return Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
+  }, [settings, selectedDay]);
 
   const getAppointmentForHour = (hour: number) => {
     return appointments.find((a) => {
-      const h = new Date(a.start_time).getUTCHours();
+      const h = new Date(a.start_time).getHours();
       return h === hour && (a.status === "confirmed" || a.status === "pending_payment");
     });
   };
+
+  if (!mounted) return <LoadingSpinner className="py-8" />;
 
   return (
     <div className="space-y-4">
@@ -98,6 +124,8 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
 
         {loading ? (
           <LoadingSpinner className="py-8" />
+        ) : hours.length === 0 ? (
+          <div className="py-10 text-center text-sm text-gray-400">Fechado neste dia.</div>
         ) : (
           <div className="divide-y divide-gray-50">
             {hours.map((hour) => {
