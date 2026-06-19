@@ -24,6 +24,7 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
     date: prefillDate ? prefillDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     time: prefillDate ? `${String(prefillDate.getHours()).padStart(2, "0")}:00` : "09:00",
     notes: "",
+    reservation_amount_brl: "0",
   });
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
@@ -56,12 +57,14 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
         start_time,
         notes: form.notes || undefined,
         service_ids: selectedServiceIds.length > 0 ? selectedServiceIds : undefined,
+        reservation_amount_cents: Math.round(parseFloat(form.reservation_amount_brl || "0") * 100),
       });
       onSuccess();
       onClose();
       setForm({
         client_name: "", client_phone: "", client_email: "",
         date: new Date().toISOString().slice(0, 10), time: "09:00", notes: "",
+        reservation_amount_brl: "0",
       });
       setSelectedServiceIds([]);
     } catch (err) {
@@ -91,6 +94,16 @@ export default function NewAppointmentModal({ open, onClose, onSuccess, prefillD
             loading={servicesLoading}
           />
         </div>
+
+        <Input
+          label="Valor da Reserva (R$)"
+          type="number"
+          min="0"
+          step="0.01"
+          value={form.reservation_amount_brl}
+          onChange={(e) => set("reservation_amount_brl", e.target.value)}
+          placeholder="0,00"
+        />
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">Observações</label>
