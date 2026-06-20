@@ -113,6 +113,7 @@ class AppointmentService:
         client_email: Optional[str] = None,
         notes: Optional[str] = None,
         service_ids: Optional[List[int]] = None,
+        reservation_amount_cents: int = 0,
     ) -> AppointmentResponse:
         s = self._get_settings()
 
@@ -143,7 +144,7 @@ class AppointmentService:
             end_time=end_time,
             status="confirmed",
             source="admin",
-            reservation_amount_cents=0,
+            reservation_amount_cents=reservation_amount_cents,
             notes=notes,
             total_duration_minutes=total_minutes if service_ids else None,
             services_total_cents=total_cents,

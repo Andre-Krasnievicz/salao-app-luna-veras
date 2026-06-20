@@ -95,7 +95,8 @@ def list_appointments(
         # Return all upcoming
         now = datetime.now(timezone.utc)
         appts = repo.get_by_date_range(now, now + timedelta(days=30))
-    return [AppointmentResponse.model_validate(a) for a in appts]
+    svc = AppointmentService(db)
+    return [svc._enrich(a, AppointmentResponse.model_validate(a)) for a in appts]
 
 
 @router.post("/appointments", response_model=AppointmentResponse)
@@ -112,6 +113,7 @@ def create_appointment(
         client_email=body.client_email,
         notes=body.notes,
         service_ids=body.service_ids,
+        reservation_amount_cents=body.reservation_amount_cents,
     )
 
 

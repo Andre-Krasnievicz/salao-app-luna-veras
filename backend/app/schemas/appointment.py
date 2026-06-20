@@ -32,6 +32,7 @@ class AdminAppointmentCreate(BaseModel):
     start_time: datetime
     notes: Optional[str] = None
     service_ids: Optional[List[int]] = None
+    reservation_amount_cents: int = 0
 
     @field_validator("client_name")
     @classmethod

@@ -16,7 +16,11 @@ interface AdminCalendarProps {
   refreshKey?: number;
 }
 
-export default function AdminCalendar({ onSlotClick, onAppointmentClick, refreshKey }: AdminCalendarProps) {
+export default function AdminCalendar({
+  onSlotClick,
+  onAppointmentClick,
+  refreshKey,
+}: AdminCalendarProps) {
   const [mounted, setMounted] = useState(false);
   const [weekStart, setWeekStart] = useState<Date>(new Date(0));
   const [selectedDay, setSelectedDay] = useState<Date>(new Date(0));
@@ -47,11 +51,15 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
   }, []);
 
   useEffect(() => {
+    if (selectedDay.getTime() === 0) return;
     loadAppointments(selectedDay);
   }, [selectedDay, loadAppointments, refreshKey]);
 
   useEffect(() => {
-    adminApi.getSettings().then((res) => setSettings(res.data)).catch(() => {});
+    adminApi
+      .getSettings()
+      .then((res) => setSettings(res.data))
+      .catch(() => {});
   }, []);
 
   // date-fns getDay(): 0=Sun,1=Mon..6=Sat → backend weekday: 0=Mon..6=Sun
@@ -70,7 +78,10 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
   const getAppointmentForHour = (hour: number) => {
     return appointments.find((a) => {
       const h = new Date(a.start_time).getHours();
-      return h === hour && (a.status === "confirmed" || a.status === "pending_payment");
+      return (
+        h === hour &&
+        (a.status === "confirmed" || a.status === "pending_payment")
+      );
     });
   };
 
@@ -98,8 +109,12 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
                   : "hover:bg-pink-50 text-gray-600"
               }`}
             >
-              <span className="font-medium">{format(day, "EEE", { locale: ptBR })}</span>
-              <span className={`text-lg font-bold ${isSameDay(day, new Date()) && !isSameDay(day, selectedDay) ? "text-pink-500" : ""}`}>
+              <span className="font-medium">
+                {format(day, "EEE", { locale: ptBR })}
+              </span>
+              <span
+                className={`text-lg font-bold ${isSameDay(day, new Date()) && !isSameDay(day, selectedDay) ? "text-pink-500" : ""}`}
+              >
                 {format(day, "d")}
               </span>
             </button>
@@ -125,7 +140,9 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
         {loading ? (
           <LoadingSpinner className="py-8" />
         ) : hours.length === 0 ? (
-          <div className="py-10 text-center text-sm text-gray-400">Fechado neste dia.</div>
+          <div className="py-10 text-center text-sm text-gray-400">
+            Fechado neste dia.
+          </div>
         ) : (
           <div className="divide-y divide-gray-50">
             {hours.map((hour) => {
@@ -147,7 +164,10 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
                       } else {
                         const slotDate = new Date(selectedDay);
                         slotDate.setHours(hour, 0, 0, 0);
-                        onSlotClick?.(slotDate, `${String(hour).padStart(2, "0")}:00`);
+                        onSlotClick?.(
+                          slotDate,
+                          `${String(hour).padStart(2, "0")}:00`,
+                        );
                       }
                     }}
                   >
@@ -155,15 +175,62 @@ export default function AdminCalendar({ onSlotClick, onAppointmentClick, refresh
                       <div className="flex items-center gap-3 w-full">
                         <div className="w-1.5 h-full min-h-[36px] bg-pink-400 rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{appt.client_name || "Cliente"}</p>
-                          <p className="text-xs text-gray-500">{formatTime(appt.start_time)} - {formatTime(appt.end_time)}</p>
+                          <p className="text-sm font-medium text-gray-800 truncate">
+                            {appt.client_name || "Cliente"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatTime(appt.start_time)} -{" "}
+                            {formatTime(appt.end_time)}
+                          </p>
+                          {appt.services && appt.services.length > 0 && (
+                            <p className="text-xs text-pink-600 truncate">
+                              {appt.services
+                                .map((s) => s.service_name_snapshot)
+                                .join(" · ")}
+                            </p>
+                          )}
                         </div>
-                        <Badge variant={statusToBadge(appt.status)}>
-                          {appt.status === "confirmed" ? "Confirmado" : appt.status === "pending_payment" ? "Aguardando" : appt.status}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <Badge variant={statusToBadge(appt.status)}>
+                            {appt.status === "confirmed"
+                              ? "Confirmado"
+                              : appt.status === "pending_payment"
+                                ? "Aguardando"
+                                : appt.status}
+                          </Badge>
+                          {appt.source === "admin" &&
+                            (settings?.reservation_amount_cents ?? 0) > 0 &&
+                            (() => {
+                              if (appt.reservation_amount_cents === 0)
+                                return (
+                                  <Badge variant="red">Reserva a pagar</Badge>
+                                );
+                              if (
+                                appt.reservation_amount_cents <
+                                settings!.reservation_amount_cents
+                              )
+                                return (
+                                  <Badge variant="yellow">
+                                    Reserva paga parcial
+                                  </Badge>
+                                );
+                              if (
+                                appt.reservation_amount_cents ===
+                                settings!.reservation_amount_cents
+                              )
+                                return (
+                                  <Badge variant="green">Reserva paga</Badge>
+                                );
+                              return (
+                                <Badge variant="green">Reserva paga+</Badge>
+                              );
+                            })()}
+                        </div>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 select-none">Disponível — clique para agendar</span>
+                      <span className="text-xs text-gray-400 select-none">
+                        Horário Disponível - clique para agendar
+                      </span>
                     )}
                   </div>
                 </div>

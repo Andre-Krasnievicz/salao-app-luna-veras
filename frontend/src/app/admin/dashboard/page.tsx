@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FiUsers, FiCalendar, FiEye, FiPlusCircle, FiAlertTriangle } from "react-icons/fi";
+import {
+  FiUsers,
+  FiCalendar,
+  FiEye,
+  FiPlusCircle,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import AdminLayout from "@/components/layout/AdminLayout";
 import AdminCalendar from "@/components/admin/AdminCalendar";
 import NewAppointmentModal from "@/components/admin/NewAppointmentModal";
+import EditAppointmentModal from "@/components/admin/EditAppointmentModal";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -23,11 +30,13 @@ export default function AdminDashboard() {
   const [prefillDate, setPrefillDate] = useState<Date | undefined>();
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState("");
 
   useEffect(() => {
-    adminApi.getDashboard()
+    adminApi
+      .getDashboard()
       .then((res) => setMetrics(res.data))
       .catch(() => {})
       .finally(() => setMetricsLoading(false));
@@ -36,9 +45,21 @@ export default function AdminDashboard() {
   const metricCards = metrics
     ? [
         { label: "Visitas ao site", value: metrics.site_visits, icon: FiEye },
-        { label: "Novos clientes (30d)", value: metrics.new_clients_30d, icon: FiUsers },
-        { label: "Agendamentos (7d)", value: metrics.appointments_7d, icon: FiCalendar },
-        { label: "Agendamentos (30d)", value: metrics.appointments_30d, icon: FiCalendar },
+        {
+          label: "Novos clientes (30d)",
+          value: metrics.new_clients_30d,
+          icon: FiUsers,
+        },
+        {
+          label: "Agendamentos (7d)",
+          value: metrics.appointments_7d,
+          icon: FiCalendar,
+        },
+        {
+          label: "Agendamentos (30d)",
+          value: metrics.appointments_30d,
+          icon: FiCalendar,
+        },
       ]
     : [];
 
@@ -70,9 +91,12 @@ export default function AdminDashboard() {
           <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
             <FiAlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-yellow-800">Altere a senha padrão</p>
+              <p className="text-sm font-semibold text-yellow-800">
+                Altere a senha padrão
+              </p>
               <p className="text-xs text-yellow-700 mt-0.5">
-                Você está usando a senha padrão. Por segurança, altere-a em configurações o quanto antes.
+                Você está usando a senha padrão. Por segurança, altere-a em
+                configurações o quanto antes.
               </p>
             </div>
           </div>
@@ -81,7 +105,13 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <Button onClick={() => { setPrefillDate(undefined); setNewApptOpen(true); }} size="sm">
+          <Button
+            onClick={() => {
+              setPrefillDate(undefined);
+              setNewApptOpen(true);
+            }}
+            size="sm"
+          >
             <FiPlusCircle className="w-4 h-4" />
             Novo agendamento
           </Button>
@@ -97,7 +127,9 @@ export default function AdminDashboard() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-gray-500 font-medium">{label}</p>
-                    <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
+                    <p className="text-3xl font-bold text-gray-800 mt-1">
+                      {value}
+                    </p>
                   </div>
                   <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
                     <Icon className="w-5 h-5 text-pink-500" />
@@ -124,28 +156,86 @@ export default function AdminDashboard() {
         prefillDate={prefillDate}
       />
 
+      {/* Edit appointment modal */}
+      <EditAppointmentModal
+        appointment={editingAppt}
+        open={!!editingAppt}
+        onClose={() => setEditingAppt(null)}
+        onSuccess={() => { setEditingAppt(null); setRefreshKey((k) => k + 1); }}
+      />
+
       {/* Appointment detail modal */}
       {selectedAppt && (
-        <Modal open={!!selectedAppt} onClose={() => { setSelectedAppt(null); setCancelError(""); }} title="Detalhes do agendamento">
+        <Modal
+          open={!!selectedAppt}
+          onClose={() => {
+            setSelectedAppt(null);
+            setCancelError("");
+          }}
+          title="Detalhes do agendamento"
+        >
           <div className="space-y-3">
             <div className="text-sm space-y-1">
-              <p><span className="font-medium">Cliente:</span> {selectedAppt.client_name || "—"}</p>
-              <p><span className="font-medium">WhatsApp:</span> {selectedAppt.client_phone || "—"}</p>
-              <p><span className="font-medium">Email:</span> {selectedAppt.client_email || "—"}</p>
-              <p><span className="font-medium">Horário:</span> {formatDateTime(selectedAppt.start_time)}</p>
-              <p><span className="font-medium">Reserva:</span> {formatCurrency(selectedAppt.reservation_amount_cents)}</p>
-              {selectedAppt.notes && <p><span className="font-medium">Observações:</span> {selectedAppt.notes}</p>}
+              <p>
+                <span className="font-medium">Cliente:</span>{" "}
+                {selectedAppt.client_name || "—"}
+              </p>
+              <p>
+                <span className="font-medium">WhatsApp:</span>{" "}
+                {selectedAppt.client_phone || "—"}
+              </p>
+              <p>
+                <span className="font-medium">Email:</span>{" "}
+                {selectedAppt.client_email || "—"}
+              </p>
+              <p>
+                <span className="font-medium">Serviços:</span>{" "}
+                {selectedAppt.services
+                  ?.map((service) => service.service_name_snapshot)
+                  .join(" · ") || "—"}
+              </p>
+              <p>
+                <span className="font-medium">Horário:</span>{" "}
+                {formatDateTime(selectedAppt.start_time)}
+              </p>
+              <p>
+                <span className="font-medium">Reserva:</span>{" "}
+                {formatCurrency(selectedAppt.reservation_amount_cents)}
+              </p>
+              {selectedAppt.notes && (
+                <p>
+                  <span className="font-medium">Observações:</span>{" "}
+                  {selectedAppt.notes}
+                </p>
+              )}
               <div className="flex items-center gap-2 pt-1">
                 <span className="font-medium">Status:</span>
-                <Badge variant={statusToBadge(selectedAppt.status)}>{STATUS_LABELS[selectedAppt.status]}</Badge>
+                <Badge variant={statusToBadge(selectedAppt.status)}>
+                  {STATUS_LABELS[selectedAppt.status]}
+                </Badge>
               </div>
             </div>
-            {cancelError && <p className="text-sm text-red-500">{cancelError}</p>}
-            {selectedAppt.status !== "cancelled" && (
-              <Button variant="danger" onClick={handleCancelAppt} loading={cancelLoading} fullWidth>
-                Cancelar agendamento
-              </Button>
+            {cancelError && (
+              <p className="text-sm text-red-500">{cancelError}</p>
             )}
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={() => { setEditingAppt(selectedAppt); setSelectedAppt(null); setCancelError(""); }}
+                fullWidth
+              >
+                Editar agendamento
+              </Button>
+              {selectedAppt.status !== "cancelled" && (
+                <Button
+                  variant="danger"
+                  onClick={handleCancelAppt}
+                  loading={cancelLoading}
+                  fullWidth
+                >
+                  Cancelar
+                </Button>
+              )}
+            </div>
           </div>
         </Modal>
       )}
