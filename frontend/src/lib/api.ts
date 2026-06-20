@@ -27,7 +27,7 @@ api.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Auth
@@ -61,7 +61,9 @@ export const publicApi = {
   getSettings: () => api.get("/api/settings/public"),
   getServices: () => api.get("/api/services"),
   getAvailability: (date: string, durationMinutes?: number) =>
-    api.get(`/api/availability?date=${date}${durationMinutes ? `&duration_minutes=${durationMinutes}` : ""}`),
+    api.get(
+      `/api/availability?date=${date}${durationMinutes ? `&duration_minutes=${durationMinutes}` : ""}`,
+    ),
   recordVisit: (path: string) => api.post("/api/site-visits", { path }),
 };
 
@@ -88,10 +90,24 @@ export const adminApi = {
   getSettings: () => api.get("/api/admin/settings"),
   updateSettings: (data: object) => api.put("/api/admin/settings", data),
   getServices: () => api.get("/api/admin/services"),
-  createService: (data: { name: string; category: string; duration_minutes: number; price_cents?: number; sort_order?: number }) =>
-    api.post("/api/admin/services", data),
-  updateService: (id: number, data: Partial<{ name: string; category: string; duration_minutes: number; price_cents: number; is_active: boolean; sort_order: number }>) =>
-    api.patch(`/api/admin/services/${id}`, data),
+  createService: (data: {
+    name: string;
+    category: string;
+    duration_minutes: number;
+    price_cents?: number;
+    sort_order?: number;
+  }) => api.post("/api/admin/services", data),
+  updateService: (
+    id: number,
+    data: Partial<{
+      name: string;
+      category: string;
+      duration_minutes: number;
+      price_cents: number;
+      is_active: boolean;
+      sort_order: number;
+    }>,
+  ) => api.patch(`/api/admin/services/${id}`, data),
   getAppointments: (date?: string) =>
     api.get(`/api/admin/appointments${date ? `?date=${date}` : ""}`),
   createAppointment: (data: {
@@ -101,10 +117,12 @@ export const adminApi = {
     start_time: string;
     notes?: string;
     service_ids?: number[];
+    reservation_amount_cents?: number;
   }) => api.post("/api/admin/appointments", data),
   updateAppointment: (id: number, data: object) =>
     api.patch(`/api/admin/appointments/${id}`, data),
-  deleteAppointment: (id: number) => api.delete(`/api/admin/appointments/${id}`),
+  deleteAppointment: (id: number) =>
+    api.delete(`/api/admin/appointments/${id}`),
   getDeletionRequests: () => api.get("/api/admin/data-deletion-requests"),
   updateDeletionRequest: (id: number, status: string) =>
     api.patch(`/api/admin/data-deletion-requests/${id}?status=${status}`),
